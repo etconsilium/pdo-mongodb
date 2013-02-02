@@ -1,0 +1,16 @@
+pdo-mongodb
+===========
+
+PHP5 PDO Emulator for MongoDB
+
+
+(не все функции реализованы. и могут работать не так, как ожидается. см. код)
+
+```example
+$mongo = new PDO_MongoDB('mongodb://localhost:27017');
+$mongo->selectDB('my_db')
+		->collection('lib')	//	PDO_MongoDB as wrapper MongodbCollection
+		->query('find')
+		->prepare('{"$all":"?",{"year":{"$gt":":year"}}}')
+		->execute(array(1=>'doc','year'=>1997))	//	PDOStatement_MongoDB as wrapper MongoCursor
+		->filter... etc

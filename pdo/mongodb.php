@@ -34,6 +34,7 @@ class PDO_MongoDB implements PDO_Emulator
 	protected $_client  = null;
 	protected $_database  = null;
 	protected $_collection = null;
+	protected $_operation = null;
 	protected $_statement = null;
 
 	//protected $_prepared = null;
@@ -124,7 +125,9 @@ class PDO_MongoDB implements PDO_Emulator
 	 * @param string $statement
 	 * @return int
 	 */
-	public function exec($statement){}
+	public function exec($operation=null){
+		return $this->_collection->{$this->_operation}($this->_prepared);
+	}
 
 	/**
 	 *
@@ -214,14 +217,40 @@ class PDO_MongoDB implements PDO_Emulator
 		$this->_collection = null;
 		return $this;
 	}
+
+	function setOperataion($operation){
+		if (is_null($this->_collection)) trigger_error('Operation not accepted');
+		$this->_operation = $operation;
+		return $this;
+	}
 	/**
-	 * @param string $statement
+	 * @param string $operation F.R.I.S.
+	 * @param array $statement=array()
 	 * @return PDOStatement
 	 */
-	public function query($statement){
+	public function query($operation, $statement=array()){
 		if (is_null($this->_collection)) trigger_error('Mongo Collection not selected');
 		else{
-			return $this->_result = $this->prepare($statement)->execute();
+			switch ($operation=strtolower($operation)) {	//	F.R.I.S.
+				case 'find':
+				case 'select':
+				case 'search':
+					//break;
+				case 'remove':
+				case 'delete':
+					//break;
+				case 'insert':
+					//break;
+				case 'save':
+				case 'update':
+					//break;
+					$this->_result = $this->setOperation($operation)
+							->prepare($statement)
+							->execute();
+				default:
+					trigger_error('Operation not accepted', E_USER_ERROR);
+			}
+			return $this->_result;
 		}
 	}
 	/**
@@ -259,12 +288,6 @@ class PDO_MongoDB implements PDO_Emulator
 						: (array)$param;	//	TODO PARAM_LOB && is_resourse: while(!eof($param)) read
             break;
 		}
-	}
-	/**
-	 * Synonym selectDB
-	 */
-	public function useDB($dbname){
-		return $this->selectDB($dbname);
 	}
 	/**
 	 * @param

@@ -208,7 +208,7 @@ class PDO_MongoDB implements PDO_Emulator
 	public function selectCollection($dbname,$collection=null){
 		if (is_null($this->_client)) trigger_error('MongoClient not define yet');
 
-		if (func_num_args()=1)
+		if (func_num_args()==1)
 			$this->_collection = $this->_client->selectCollection($dbname);
 		else
 			$this->_collection = $this->selectDB($dbname)->selectCollection($collection);

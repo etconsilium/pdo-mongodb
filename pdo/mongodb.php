@@ -2,7 +2,7 @@
 /**
  * This file is part of the PDO_Emulator package
  * @require php5-pdo, php5-mongodb (via PECL)
- * @version 010alfa
+ * @version 0101beta
  *
  * (cc-by) VS, 2013 https://github.com/etconsilium/pdo-mongodb
  * @author Vlad A. Koltsov v.koltsov@gmail.com
@@ -35,12 +35,12 @@ class PDO_MongoDB implements PDO_Emulator
 	protected $_database  = null;
 	protected $_collection = null;
 	protected $_operation = null;
-	protected $_statement = null;
 
-	//protected $_prepared = null;
+	protected $_statement = array();	//	все параметры в виде массива, как нужно для MongoClient
+	protected $_prepared = array();		//	все параметры в виде строки
 
-	protected $_jsql   = null;
-	protected $_query = array();
+	protected $_jsql   = null;		//	подготовленные плейсхолдеры в виде строки
+	protected $_query = array();	//	подготовленные плейсхолдеры в виде массива
 
 	protected $_last_error	= null;
 	protected $_last_errors = array();
@@ -60,13 +60,13 @@ class PDO_MongoDB implements PDO_Emulator
 			trigger_error('method `'.$name.'` not exists');
 	}
 
-	//public function __get($name){
-	//	var_dump($name, property_exists($this,$name));
-	//	if (property_exists($this,$name))	return $this->{$name};
-	//	if (is_null($this->_database))	$this->selectDB($name);
-	//	if (is_null($this->_collection))	$this->collection($name);
-	//	return $this;
-	//}
+	public function __get($name){
+		var_dump($name, property_exists($this,$name));
+		if (property_exists($this,$name))	return $this->{$name};
+		if (is_null($this->_database))	$this->selectDB($name);
+		if (is_null($this->_collection))	$this->collection($name);
+		return $this;
+	}
 
 
 	/**
@@ -79,12 +79,11 @@ class PDO_MongoDB implements PDO_Emulator
 	 */
 	public function __construct($URI, $driver_options=array()) {
 		$mongo = new MongoClient($URI, $driver_options);
+		//	судя по ману, возможны варианты в зависимости от настроек и привелегий юзера
 		if ($mongo instanceof MongoClient)
-			$this->_client = &$mongo;
+			$this->_client = $mongo;
 		if ($mongo instanceof MongoDB)
-			$this->_database = &$mongo;
-
-		//return $mongo;
+			$this->_database = $mongo;
 	}
 	/**
 	 * @return bool
@@ -94,8 +93,8 @@ class PDO_MongoDB implements PDO_Emulator
 		return true;
 	}
 	public function collection($cname){
-		if (is_null($this->_database)) trigger_error('Mongo DB not selected');
-		$this->_collection = $this->_database->{$cname};
+		if (is_null($this->_database)) trigger_error('Mongo DB isn`t selected');
+		$this->_collection = $this->_database->selectCollection($cname);
 		return $this;
 	}
 	/**
@@ -122,11 +121,13 @@ class PDO_MongoDB implements PDO_Emulator
     }
 
 	/**
-	 * @param string $statement
-	 * @return int
+	 * @param array $statement
+	 * @return PDOStatement_MongoDB
 	 */
-	public function exec($operation=null){
-		return $this->_collection->{$this->_operation}($this->_prepared);
+	public function exec($statement=array()){
+		if (is_null($this->_operation)) trigger_error('Mongo Operation not selected');
+		$this->_statement=array_merge_recursive($this->_statement,$statement);
+		return $this->_collection->{$this->_operation}($statement);
 	}
 
 	/**
@@ -136,12 +137,7 @@ class PDO_MongoDB implements PDO_Emulator
 		if (is_null($this->_collection)) trigger_error('Mongo Collection not selected');
 		return $this->_result = $this->_collection->find($statement);
 	}
-	/**
-	 * Synonym selectDB()
-	 */
-	public function from($dbname){
-		return $this->selectDB($dbname);
-	}
+
 	/**
 	 * Synonym selectDB()
 	 */
@@ -178,6 +174,12 @@ class PDO_MongoDB implements PDO_Emulator
 	 * @return string
 	 */
 	public function lastInsertId(){}
+
+	/**
+	 */
+	public function operation($operation){
+		return $this->setOperataion($operation);
+	}
 	/**
 	 * @param string $statement NB: This must be a valid Query statement for the MongoDB!
 	 * @param array $driver_options = array()	яхз что передают в монгу
@@ -203,9 +205,14 @@ class PDO_MongoDB implements PDO_Emulator
 	/**
 	 * Synonym MongoClient::selectCollection
 	 */
-	public function selectCollection($dbname,$collection){
-		if (is_null($this->_client)) trigger_error('MongoClient not run yet');
-		$this->_collection = $this->_client->selectCollection($dbname,$collection);
+	public function selectCollection($dbname,$collection=null){
+		if (is_null($this->_client)) trigger_error('MongoClient not define yet');
+
+		if (func_num_args()=1)
+			$this->_collection = $this->_client->selectCollection($dbname);
+		else
+			$this->_collection = $this->selectDB($dbname)->selectCollection($collection);
+
 		return $this;
 	}
 	/**
@@ -491,7 +498,7 @@ class PDOStatement_MongoDB implements PDOStatement_Emulator //extends Iterator
 		$this->queryArray=json_decode($this->queryString);
 		//var_dump('query',$this->queryString);
 
-		$this->_result = $this->_ancestor->find($this->queryArray);
+		$this->_result = $this->_ancestor->exec($this->queryArray);
 		//	надо поменять принцип обращения
 
 		//	здесь проверка на ошибки

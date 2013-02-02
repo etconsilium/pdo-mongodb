@@ -3,7 +3,6 @@ pdo-mongodb
 
 PHP5 PDO Emulator for MongoDB
 
-
 (не все функции реализованы. и могут работать не так, как ожидается. см. код)
 
 ```example
@@ -14,3 +13,6 @@ $mongo->selectDB('my_db')
 		->prepare('{"$all":"?",{"year":{"$gt":":year"}}}')
 		->execute(array(1=>'doc','year'=>1997))	//	PDOStatement_MongoDB as wrapper MongoCursor
 		->filter... etc
+
+
+ps: актуальная рабочая версия будет поддерживаться в бренче current
